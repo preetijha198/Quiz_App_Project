@@ -1,23 +1,38 @@
-import { useState } from "react";
-import questions from "./questions";
+import { useState, useEffect } from "react";
+import allQuestions from "./questions";
 import "./App.css";
 
+// Function to shuffle and select 5 random questions
+const getRandomQuestions = (questions, num = 5) => {
+  const shuffled = [...questions].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, num);
+};
+
 function App() {
-  const [playerName, setPlayerName] = useState("");
-  const [nameEntered, setNameEntered] = useState(false);
+  const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
+  const [username, setUsername] = useState("");
+  const [quizStarted, setQuizStarted] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
 
-  // Handle start of the quiz
-  const handleStartQuiz = () => {
-    if (playerName.trim() !== "") {
-      setNameEntered(true);
+  // Load leaderboard from local storage
+  useEffect(() => {
+    const storedLeaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
+    setLeaderboard(storedLeaderboard);
+  }, []);
+
+  // Load 5 random questions when quiz starts
+  const startQuiz = () => {
+    if (username.trim() === "") {
+      alert("Please enter your name to start the quiz!");
+      return;
     }
+    setQuestions(getRandomQuestions(allQuestions));
+    setQuizStarted(true);
   };
 
-  // Handle answer selection
   const handleAnswerClick = (selectedOption) => {
     if (selectedOption === questions[currentQuestion].answer) {
       setScore(score + 1);
@@ -28,53 +43,58 @@ function App() {
       setCurrentQuestion(nextQuestion);
     } else {
       setShowScore(true);
-      setLeaderboard([...leaderboard, { name: playerName, score }]);
+      saveScore();
     }
   };
 
-  // Restart quiz
-  const handleRestart = () => {
-    setPlayerName("");
-    setNameEntered(false);
-    setCurrentQuestion(0);
-    setScore(0);
-    setShowScore(false);
+  // Save user's score in local storage
+  const saveScore = () => {
+    const newEntry = { name: username, score };
+    const updatedLeaderboard = [...leaderboard, newEntry].sort((a, b) => b.score - a.score);
+    setLeaderboard(updatedLeaderboard);
+    localStorage.setItem("leaderboard", JSON.stringify(updatedLeaderboard));
   };
 
   return (
     <div className="quiz-container">
       <h1 className="title">Welcome to Quiz App</h1>
 
-      {!nameEntered ? (
+      {!quizStarted ? (
         <div>
           <input
             type="text"
             placeholder="Enter your name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="name-input"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
           />
-          <button onClick={handleStartQuiz}>Start Quiz</button>
-        </div>
-      ) : showScore ? (
-        <div>
-          <h2 className="score-section">
-            {playerName}, Your Score: {score} / {questions.length}
-          </h2>
-          <h3>Leaderboard:</h3>
+          <button onClick={startQuiz}>Start Quiz</button>
+
+          <h2>Leaderboard</h2>
           <ul>
-            {leaderboard.map((player, index) => (
+            {leaderboard.map((entry, index) => (
               <li key={index}>
-                {player.name}: {player.score} / {questions.length}
+                {entry.name}: {entry.score} / 5
               </li>
             ))}
           </ul>
-          <button onClick={handleRestart}>Restart</button>
+        </div>
+      ) : showScore ? (
+        <div>
+          <h2 className="score-section">{username}, Your Score: {score} / {questions.length}</h2>
+          <h2>Leaderboard</h2>
+          <ul>
+            {leaderboard.map((entry, index) => (
+              <li key={index}>
+                {entry.name}: {entry.score} / 5
+              </li>
+            ))}
+          </ul>
+          <button onClick={() => window.location.reload()}>Restart Quiz</button>
         </div>
       ) : (
         <div>
-          <h3>{questions[currentQuestion].question}</h3>
-          {questions[currentQuestion].options.map((option, index) => (
+          <h3>{questions[currentQuestion]?.question}</h3>
+          {questions[currentQuestion]?.options.map((option, index) => (
             <button key={index} onClick={() => handleAnswerClick(option)}>
               {option}
             </button>
